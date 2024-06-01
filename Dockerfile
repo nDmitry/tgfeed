@@ -24,18 +24,6 @@ RUN --mount=type=cache,target=/var/cache/apk \
         && \
         update-ca-certificates
 
-ARG UID=10001
-
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
-
-USER appuser
 COPY --from=build /bin/tgfeed /app/
 WORKDIR /app
 CMD ["./tgfeed"]
