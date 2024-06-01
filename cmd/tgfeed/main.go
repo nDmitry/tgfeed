@@ -53,10 +53,12 @@ func run(ctx context.Context, config *entity.Config) {
 
 		if err != nil {
 			slog.ErrorContext(ctx, err.Error())
+			continue
 		}
 
 		if err := feed.Generate(channel, feedsDir); err != nil {
 			slog.ErrorContext(ctx, err.Error())
+			continue
 		}
 	}
 
