@@ -1,0 +1,8 @@
+{
+    "scrapingEveryMinutes": 10,
+
+    "channels": [
+        "channelUsername1",
+        "channelUsername2"
+    ]
+}

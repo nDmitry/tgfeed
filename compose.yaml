@@ -1,0 +1,10 @@
+services:
+  tgfeed:
+    container_name: tgfeed
+    build:
+      context: .
+      target: final
+    volumes:
+      - ./config.json:/app/config.json
+      - ./cache:/app/cache
+      - ./feeds:/app/feeds
