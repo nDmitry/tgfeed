@@ -47,6 +47,20 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 			panic(fmt.Errorf("could not get HTML post content for %s: %w", post.URL, err))
 		}
 
+		dtText, exists := e.DOM.Find(".tgme_widget_message_date").Find("time").Attr("datetime")
+
+		if !exists {
+			panic(fmt.Errorf("could not find datetime for %s: %w", post.URL, err))
+		}
+
+		dt, err := time.Parse(time.RFC3339, dtText)
+
+		if err != nil {
+			panic(fmt.Errorf("could not parse post datetime for %s: %w", post.URL, err))
+		}
+
+		post.Datetime = dt
+
 		if post.ContentHTML == "" {
 			// Default content in case Telegram does not show it in the web version.
 			post.ContentHTML = fmt.Sprintf(
@@ -54,15 +68,6 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 				post.URL,
 			)
 		}
-
-		dtText := e.ChildAttr("time", "datetime")
-		dt, err := time.Parse(time.RFC3339, dtText)
-
-		if err != nil {
-			panic(fmt.Errorf("could not parse post datetime %#v for %s: %w", dtText, post.URL, err))
-		}
-
-		post.Datetime = dt
 
 		channel.Posts = append(channel.Posts, post)
 	})
