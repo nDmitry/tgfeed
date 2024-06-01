@@ -44,7 +44,7 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
 		if err != nil {
-			panic(fmt.Errorf("could not get HTML post content: %w", err))
+			panic(fmt.Errorf("could not get HTML post content for %s: %w", post.URL, err))
 		}
 
 		if post.ContentHTML == "" {
@@ -55,10 +55,11 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 			)
 		}
 
-		dt, err := time.Parse(time.RFC3339, e.ChildAttr("time", "datetime"))
+		dtText := e.ChildAttr("time", "datetime")
+		dt, err := time.Parse(time.RFC3339, dtText)
 
 		if err != nil {
-			panic(fmt.Errorf("could not parse post datetime: %w", err))
+			panic(fmt.Errorf("could not parse post datetime %#v for %s: %w", dtText, post.URL, err))
 		}
 
 		post.Datetime = dt
@@ -67,11 +68,11 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		panic(fmt.Errorf("request error: %w", err))
+		panic(fmt.Errorf("request error %s: %w", channel.URL, err))
 	})
 
 	if err := c.Visit(channel.URL); err != nil {
-		return nil, fmt.Errorf("could not visit: %w", err)
+		return nil, fmt.Errorf("could not visit %s: %w", channel.URL, err)
 	}
 
 	return channel, nil
