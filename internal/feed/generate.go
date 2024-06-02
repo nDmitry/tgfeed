@@ -2,6 +2,7 @@ package feed
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 
@@ -18,6 +19,20 @@ func Generate(channel *entity.Channel, config *entity.Config) error {
 	}
 
 	for _, p := range channel.Posts {
+		skip := false
+
+		for _, sw := range config.StopWordsRegexps {
+			if sw.MatchString(p.ContentHTML) {
+				skip = true
+				break
+			}
+		}
+
+		if skip {
+			slog.Info("skipping post with a stop word", "ID", p.ID)
+			continue
+		}
+
 		feed.Items = append(feed.Items, &feeds.Item{
 			Id:      p.ID,
 			Content: p.ContentHTML,

@@ -1,7 +1,8 @@
 {
-    "feedFormat": "rss",
+    "feedFormat": "atom",
     "feedsPath": "feeds",
     "scrapingEveryMinutes": 10,
+    "stopWords": ["\\berid\\b", "t\\.me\\/\\+.+"],
 
     "channels": [
         "channelUsername1",
