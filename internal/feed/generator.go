@@ -3,7 +3,6 @@ package feed
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/gorilla/feeds"
 	"github.com/nDmitry/tgfeed/internal/entity"
@@ -12,9 +11,8 @@ import (
 // Generate creates an Atom feed and saves it to a file.
 func Generate(channel *entity.Channel, outPath string) error {
 	feed := &feeds.Feed{
-		Title:   channel.Title,
-		Link:    &feeds.Link{Href: channel.URL},
-		Created: time.Now(),
+		Title: channel.Title,
+		Link:  &feeds.Link{Href: channel.URL},
 	}
 
 	for _, p := range channel.Posts {
@@ -23,11 +21,11 @@ func Generate(channel *entity.Channel, outPath string) error {
 			Content: p.ContentHTML,
 			Link:    &feeds.Link{Href: p.URL},
 			Created: p.Datetime,
-			// Enclosure: &feeds.Enclosure{
-			// 	Type: "image/jpeg",
-			// 	Url: "",
-			// },
 		})
+
+		if feed.Created.IsZero() || p.Datetime.After(feed.Created) {
+			feed.Created = p.Datetime
+		}
 	}
 
 	atom, err := feed.ToAtom()
