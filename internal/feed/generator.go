@@ -3,6 +3,7 @@ package feed
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/gorilla/feeds"
 	"github.com/nDmitry/tgfeed/internal/entity"
@@ -22,6 +23,11 @@ func Generate(channel *entity.Channel, config *entity.Config) error {
 			Content: p.ContentHTML,
 			Link:    &feeds.Link{Href: p.URL},
 			Created: p.Datetime,
+			Enclosure: &feeds.Enclosure{
+				Url:    p.ImageURL,
+				Type:   p.ImageType,
+				Length: strconv.Itoa(int(p.ImageSize)),
+			},
 		})
 
 		if feed.Created.IsZero() || p.Datetime.After(feed.Created) {
