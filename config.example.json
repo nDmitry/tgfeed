@@ -1,4 +1,6 @@
 {
+    "feedFormat": "rss",
+    "feedsPath": "feeds",
     "scrapingEveryMinutes": 10,
 
     "channels": [

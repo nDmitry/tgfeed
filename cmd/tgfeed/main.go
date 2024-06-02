@@ -15,7 +15,6 @@ import (
 )
 
 const configPath = "config.json"
-const feedsDir = "feeds"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -56,7 +55,7 @@ func run(ctx context.Context, config *entity.Config) {
 			continue
 		}
 
-		if err := feed.Generate(channel, feedsDir); err != nil {
+		if err := feed.Generate(channel, config); err != nil {
 			slog.ErrorContext(ctx, err.Error())
 			continue
 		}

@@ -30,8 +30,9 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 		colly.UserAgent(userAgent),
 	)
 
-	c.OnHTML(".tgme_channel_info_header_title", func(e *colly.HTMLElement) {
-		channel.Title = e.Text
+	c.OnHTML(".tgme_channel_info_header", func(e *colly.HTMLElement) {
+		channel.Title = e.ChildText(".tgme_channel_info_header_title")
+		channel.ImageURL = e.ChildAttr("img", "src")
 	})
 
 	c.OnHTML(".tgme_widget_message", func(e *colly.HTMLElement) {

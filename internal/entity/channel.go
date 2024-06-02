@@ -6,6 +6,7 @@ type Channel struct {
 	Username string
 	Title    string
 	URL      string
+	ImageURL string
 	Posts    []Post
 }
 
