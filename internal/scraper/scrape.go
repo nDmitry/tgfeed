@@ -14,7 +14,7 @@ import (
 	"github.com/nDmitry/tgfeed/internal/entity"
 )
 
-const cachePath = "cache"
+const tmpPath = "/tmp"
 const tgDomain = "t.me"
 const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
@@ -35,7 +35,6 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 
 	c := colly.NewCollector(
 		colly.AllowedDomains(tgDomain),
-		colly.CacheDir(cachePath),
 		colly.UserAgent(userAgent),
 	)
 
@@ -130,7 +129,7 @@ func getImageSize(imageURL string) (int64, error) {
 
 	defer res.Body.Close()
 
-	tmpFile, err := os.CreateTemp(cachePath, "enclosure_*")
+	tmpFile, err := os.CreateTemp(tmpPath, "enclosure_*")
 
 	if err != nil {
 		return 0, fmt.Errorf("could not create a temp file: %w", err)

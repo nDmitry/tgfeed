@@ -6,5 +6,4 @@ services:
       target: final
     volumes:
       - ./config.json:/app/config.json
-      - ./cache:/app/cache
       - ./feeds:/app/feeds
