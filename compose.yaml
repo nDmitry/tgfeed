@@ -7,3 +7,6 @@ services:
     volumes:
       - ./config.json:/app/config.json
       - ./feeds:/app/feeds
+    environment:
+      TZ: Europe/Moscow
+    restart: unless-stopped
