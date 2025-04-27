@@ -4,9 +4,32 @@ services:
     build:
       context: .
       target: final
-    volumes:
-      - ./config.json:/app/config.json
-      - ./feeds:/app/feeds
     environment:
-      TZ: Europe/Moscow
+      - TZ=Europe/Moscow
+      - HTTP_SERVER_PORT=8080
+      - REDIS_HOST=redis
+    ports:
+      - 8080:8080
+    depends_on:
+      - redis
     restart: unless-stopped
+
+  redis:
+    container_name: redis
+    image: redis:alpine
+    environment:
+      - TZ=Europe/Moscow
+    ports:
+      - 6379:6379
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  redis-data:

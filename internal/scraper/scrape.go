@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,31 +12,36 @@ import (
 	"time"
 
 	"github.com/gocolly/colly/v2"
+	"github.com/nDmitry/tgfeed/internal/app"
 	"github.com/nDmitry/tgfeed/internal/entity"
 )
 
 const tmpPath = "/tmp"
 const tgDomain = "t.me"
-const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+const userAgentDefault = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
 var imageExtRe = regexp.MustCompile(`\.(jpg|jpeg|png)$`)
 
-func Scrape(username string) (channel *entity.Channel, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			channel = nil
-			err = fmt.Errorf("recovered: %w", r.(error))
-		}
-	}()
+// Scrape fetches channel data from Telegram
+// nolint: cyclop
+func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
+	logger := app.Logger()
 
-	channel = &entity.Channel{
+	channel := &entity.Channel{
 		Username: username,
 		URL:      fmt.Sprintf("https://%s/s/%s", tgDomain, username),
 	}
 
+	ua := os.Getenv("USER_AGENT")
+
+	if ua != "" {
+		ua = userAgentDefault
+	}
+
 	c := colly.NewCollector(
 		colly.AllowedDomains(tgDomain),
-		colly.UserAgent(userAgent),
+		colly.UserAgent(ua),
+		colly.StdlibContext(ctx),
 	)
 
 	c.OnHTML(".tgme_channel_info_header", func(e *colly.HTMLElement) {
@@ -53,7 +59,10 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
 		if err != nil {
-			panic(fmt.Errorf("could not get HTML post content for %s: %w", post.URL, err))
+			logger.Error("Could not get HTML post content",
+				"url", post.URL,
+				"error", err)
+			return
 		}
 
 		style, exists := e.DOM.Find(".tgme_widget_message_photo_wrap").Attr("style")
@@ -80,20 +89,29 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 
 		if post.ImageURL != "" {
 			if post.ImageSize, err = getImageSize(post.ImageURL); err != nil {
-				panic(fmt.Errorf("could not get image size for %s: %w", post.URL, err))
+				logger.Error("Could not get image size",
+					"url", post.URL,
+					"imageUrl", post.ImageURL,
+					"error", err)
+				// Continue anyway, image size is not critical
 			}
 		}
 
 		dtText, exists := e.DOM.Find(".tgme_widget_message_date").Find("time").Attr("datetime")
 
 		if !exists {
-			panic(fmt.Errorf("could not find datetime for %s: %w", post.URL, err))
+			logger.Error("Could not find datetime", "url", post.URL)
+			return
 		}
 
 		dt, err := time.Parse(time.RFC3339, dtText)
 
 		if err != nil {
-			panic(fmt.Errorf("could not parse post datetime for %s: %w", post.URL, err))
+			logger.Error("Could not parse post datetime",
+				"url", post.URL,
+				"datetime", dtText,
+				"error", err)
+			return
 		}
 
 		post.Datetime = dt
@@ -110,7 +128,10 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		panic(fmt.Errorf("request error %s: %w", channel.URL, err))
+		logger.Error("Request error",
+			"url", channel.URL,
+			"status", r.StatusCode,
+			"error", err)
 	})
 
 	if err := c.Visit(channel.URL); err != nil {
@@ -121,6 +142,7 @@ func Scrape(username string) (channel *entity.Channel, err error) {
 }
 
 func getImageSize(imageURL string) (int64, error) {
+	// nolint: gosec
 	res, err := http.Get(imageURL)
 
 	if err != nil {

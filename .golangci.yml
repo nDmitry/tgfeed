@@ -1,0 +1,50 @@
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - copyloopvar
+    - cyclop
+    - errcheck
+    - gocritic
+    - gofmt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - iface
+    - ineffassign
+    - misspell
+    - nakedret
+    - nestif
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sloglint
+    - sqlclosecheck
+    - staticcheck
+    - stylecheck
+    - testifylint
+    - unconvert
+    - unparam
+    - whitespace
+  fast: false
+linters-settings:
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  gocritic:
+    enabled-tags:
+      - performance
+    disabled-checks:
+      - exitAfterDefer
+      - hugeParam
+      - ifElseChain
+      - rangeValCopy
+      - singleCaseSwitch
+      - wrapperFunc
+  govet:
+    enable:
+      - shadow
+  misspell:
+    locale: US

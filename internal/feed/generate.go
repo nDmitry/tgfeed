@@ -2,16 +2,15 @@ package feed
 
 import (
 	"fmt"
-	"log/slog"
-	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/feeds"
 	"github.com/nDmitry/tgfeed/internal/entity"
 )
 
-// Generate creates a feed and saves it to a file.
-func Generate(channel *entity.Channel, config *entity.Config) error {
+// Generate creates a feed from a channel and returns it as a byte array
+func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error) {
 	feed := &feeds.Feed{
 		Title: channel.Title,
 		Link:  &feeds.Link{Href: channel.URL},
@@ -19,17 +18,7 @@ func Generate(channel *entity.Channel, config *entity.Config) error {
 	}
 
 	for _, p := range channel.Posts {
-		skip := false
-
-		for _, sw := range config.StopWordsRegexps {
-			if sw.MatchString(p.ContentHTML) {
-				skip = true
-				break
-			}
-		}
-
-		if skip {
-			slog.Info("skipping post with a stop word", "ID", p.ID)
+		if shouldExcludePost(p.ContentHTML, params.ExcludeWords, params.ExcludeCaseSensitive) {
 			continue
 		}
 
@@ -50,19 +39,43 @@ func Generate(channel *entity.Channel, config *entity.Config) error {
 		}
 	}
 
-	out, err := feed.ToRss()
+	var content string
+	var err error
+
+	switch params.Format {
+	case entity.FormatRSS:
+		content, err = feed.ToRss()
+	case entity.FormatAtom:
+		content, err = feed.ToAtom()
+	default:
+		return nil, fmt.Errorf("unsupported feed format: %s", params.Format)
+	}
 
 	if err != nil {
-		return fmt.Errorf("could not marshal channel %s to feed: %w", channel.Username, err)
+		return nil, fmt.Errorf("could not marshal channel %s to feed: %w", channel.Username, err)
 	}
 
-	if err := os.MkdirAll(config.FeedsPath, 0755); err != nil {
-		return fmt.Errorf("could not make the feeds dir: %w", err)
+	return []byte(content), nil
+}
+
+// shouldExcludePost checks if a post should be excluded based on exclude words
+func shouldExcludePost(content string, excludeWords []string, caseSensitive bool) bool {
+	if len(excludeWords) == 0 {
+		return false
 	}
 
-	if err := os.WriteFile(fmt.Sprintf("%s/%s.%s", config.FeedsPath, channel.Username, config.FeedFormat), []byte(out), 0644); err != nil {
-		return fmt.Errorf("could not save the feed %s to a file: %w", channel.Username, err)
+	if !caseSensitive {
+		content = strings.ToLower(content)
 	}
 
-	return nil
+	for _, word := range excludeWords {
+		if !caseSensitive {
+			word = strings.ToLower(word)
+		}
+		if strings.Contains(content, word) {
+			return true
+		}
+	}
+
+	return false
 }

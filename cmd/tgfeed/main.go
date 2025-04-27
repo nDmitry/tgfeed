@@ -2,64 +2,100 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/nDmitry/tgfeed/internal/config"
-	"github.com/nDmitry/tgfeed/internal/entity"
-	"github.com/nDmitry/tgfeed/internal/feed"
-	"github.com/nDmitry/tgfeed/internal/scraper"
+	"github.com/nDmitry/tgfeed/internal/app"
+	"github.com/nDmitry/tgfeed/internal/cache"
+	"github.com/nDmitry/tgfeed/internal/handler"
 )
 
-const configPath = "config.json"
-
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
+	// Setup logger
+	logger := app.Logger()
+	slog.SetDefault(logger)
 
-	config, err := config.Read(configPath)
+	// Create a cancellable context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Setup signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		logger.Info("Received first shutdown signal, starting graceful shutdown...")
+		cancel()
+
+		// If we receive a second signal, exit immediately
+		<-sigChan
+		logger.Info("Received second shutdown signal, exiting immediately...")
+		os.Exit(1)
+	}()
+
+	port := os.Getenv("HTTP_SERVER_PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
+	redisHost := os.Getenv("REDIS_HOST")
+
+	if redisHost == "" {
+		redisHost = "redis"
+	}
+
+	// Initialize Redis cache
+	redisClient, err := cache.NewRedisClient(ctx, fmt.Sprintf("%s:6379", redisHost))
 
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("Failed to connect to Redis", "error", err)
+		os.Exit(1)
 	}
 
-	// Initial run
-	run(ctx, config)
+	defer redisClient.Close()
 
-	// Periodic run
-	ticker := time.NewTicker(time.Duration(config.ScrapingInterval) * time.Minute)
+	telegramHandler := handler.NewTelegramHandler(redisClient)
 
-	for {
-		select {
-		case <-ticker.C:
-			run(ctx, config)
-		case <-ctx.Done():
-			ticker.Stop()
-			slog.InfoContext(ctx, "Exiting...")
-			return
-		}
-	}
-}
-
-func run(ctx context.Context, config *entity.Config) {
-	slog.InfoContext(ctx, "Scraping the channels...")
-
-	for _, ch := range config.Channels {
-		channel, err := scraper.Scrape(ch)
-
-		if err != nil {
-			slog.ErrorContext(ctx, err.Error())
-			continue
-		}
-
-		if err := feed.Generate(channel, config); err != nil {
-			slog.ErrorContext(ctx, err.Error())
-			continue
-		}
+	server := &http.Server{
+		Addr:              ":" + port,
+		Handler:           telegramHandler.Handler(),
+		BaseContext:       func(_ net.Listener) context.Context { return ctx },
+		ReadHeaderTimeout: 10 * time.Second,  // Mitigate Slowloris
+		ReadTimeout:       30 * time.Second,  // Time to read entire request (including body)
+		WriteTimeout:      30 * time.Second,  // Time to write response
+		IdleTimeout:       120 * time.Second, // Keep-alive timeout
 	}
 
-	slog.InfoContext(ctx, "Scraping is done")
+	server.RegisterOnShutdown(cancel)
+
+	// Start server in a goroutine so it doesn't block
+	go func() {
+		logger.Info("Starting server", "port", port)
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("Server error", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for context cancelation (shutdown signal)
+	<-ctx.Done()
+	logger.Info("Shutting down server...")
+
+	// Create a deadline for server shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Error("Server forced to shutdown", "error", err)
+	}
+
+	logger.Info("Server exited gracefully")
 }
