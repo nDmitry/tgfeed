@@ -4,20 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/nDmitry/tgfeed/internal/api/rest"
 	"github.com/nDmitry/tgfeed/internal/app"
 	"github.com/nDmitry/tgfeed/internal/cache"
-	"github.com/nDmitry/tgfeed/internal/handler"
 )
 
 func main() {
-	// Setup logger
 	logger := app.Logger()
 	slog.SetDefault(logger)
 
@@ -61,40 +57,12 @@ func main() {
 
 	defer redisClient.Close()
 
-	telegramHandler := handler.NewTelegramHandler(redisClient)
+	// Initialize and run the HTTP server
+	server := rest.NewServer(redisClient, port)
 
-	server := &http.Server{
-		Addr:              ":" + port,
-		Handler:           telegramHandler.Handler(),
-		BaseContext:       func(_ net.Listener) context.Context { return ctx },
-		ReadHeaderTimeout: 10 * time.Second,  // Mitigate Slowloris
-		ReadTimeout:       30 * time.Second,  // Time to read entire request (including body)
-		WriteTimeout:      30 * time.Second,  // Time to write response
-		IdleTimeout:       120 * time.Second, // Keep-alive timeout
-	}
-
-	server.RegisterOnShutdown(cancel)
-
-	// Start server in a goroutine so it doesn't block
-	go func() {
-		logger.Info("Starting server", "port", port)
-
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("Server error", "error", err)
-			os.Exit(1)
-		}
-	}()
-
-	// Wait for context cancelation (shutdown signal)
-	<-ctx.Done()
-	logger.Info("Shutting down server...")
-
-	// Create a deadline for server shutdown
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer shutdownCancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		logger.Error("Server forced to shutdown", "error", err)
+	if err := server.Run(ctx); err != nil {
+		logger.Error("Server error", "error", err)
+		os.Exit(1)
 	}
 
 	logger.Info("Server exited gracefully")

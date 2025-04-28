@@ -1,4 +1,4 @@
-package handler
+package rest
 
 import (
 	"context"
@@ -16,34 +16,24 @@ import (
 	"github.com/nDmitry/tgfeed/internal/scraper"
 )
 
-// TelegramHandler handles routes for Telegram feeds
-type TelegramHandler struct {
+// telegramHandler handles routes for Telegram feeds
+type telegramHandler struct {
 	cache  cache.Cache
-	mux    *http.ServeMux
 	logger *slog.Logger
 }
 
-// NewTelegramHandler creates a new TelegramHandler and sets up routes
-func NewTelegramHandler(cache cache.Cache) *TelegramHandler {
-	handler := &TelegramHandler{
+// NewTelegramHandler registers all Telegram-related handlers
+func NewTelegramHandler(mux *http.ServeMux, cache cache.Cache) {
+	handler := &telegramHandler{
 		cache:  cache,
-		mux:    http.NewServeMux(),
 		logger: app.Logger(),
 	}
 
-	// Setup routes
-	handler.mux.HandleFunc("GET /telegram/channel/{username}", handler.GetChannelFeed)
-
-	return handler
+	mux.HandleFunc("GET /telegram/channel/{username}", handler.getChannelFeed)
 }
 
-// Handler returns the HTTP handler for telegram routes
-func (h *TelegramHandler) Handler() http.Handler {
-	return h.mux
-}
-
-// GetChannelFeed handles requests for Telegram channel feeds
-func (h *TelegramHandler) GetChannelFeed(w http.ResponseWriter, r *http.Request) {
+// getChannelFeed handles requests for Telegram channel feeds
+func (h *telegramHandler) getChannelFeed(w http.ResponseWriter, r *http.Request) {
 	params, err := entity.NewFeedParamFromRequest(r)
 
 	if err != nil {
@@ -102,7 +92,7 @@ func (h *TelegramHandler) GetChannelFeed(w http.ResponseWriter, r *http.Request)
 }
 
 // buildCacheKey generates a cache key based on request parameters
-func (h *TelegramHandler) buildCacheKey(params *entity.FeedParams) string {
+func (h *telegramHandler) buildCacheKey(params *entity.FeedParams) string {
 	excludeWords := ""
 
 	if len(params.ExcludeWords) > 0 {
@@ -123,7 +113,7 @@ func (h *TelegramHandler) buildCacheKey(params *entity.FeedParams) string {
 }
 
 // serveContent sends the content to the client with appropriate headers
-func (h *TelegramHandler) serveContent(w http.ResponseWriter, content []byte, format string, cacheTTL int) {
+func (h *telegramHandler) serveContent(w http.ResponseWriter, content []byte, format string, cacheTTL int) {
 	var contentType string
 	switch format {
 	case entity.FormatRSS:
@@ -150,7 +140,7 @@ func (h *TelegramHandler) serveContent(w http.ResponseWriter, content []byte, fo
 }
 
 // handleError responds with an error message
-func (h *TelegramHandler) handleError(w http.ResponseWriter, err error, statusCode int) {
+func (h *telegramHandler) handleError(w http.ResponseWriter, err error, statusCode int) {
 	h.logger.Error("Request error", "error", err, "status", statusCode)
 
 	w.Header().Set("Content-Type", "application/json")
