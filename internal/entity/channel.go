@@ -14,6 +14,7 @@ type Post struct {
 	// Post ID, e.g. Channel/123.
 	ID          string
 	URL         string
+	Title       string
 	ContentHTML string
 	ImageURL    string
 	ImageType   string

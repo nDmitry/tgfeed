@@ -52,7 +52,7 @@ func (s *Server) registerHandlers() {
 	// more handlers can be here
 }
 
-// Run starts the server and blocks until the context is cancelled
+// Run starts the server and blocks until the context is canceled
 func (s *Server) Run(ctx context.Context) error {
 	// Apply middleware to the router
 	handlerWithMiddleware := Logger(s.mux)

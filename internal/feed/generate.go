@@ -15,6 +15,7 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 		Title: channel.Title,
 		Link:  &feeds.Link{Href: channel.URL},
 		Image: &feeds.Image{Url: channel.ImageURL, Title: channel.Title, Link: channel.URL},
+		Items: make([]*feeds.Item, 0, len(channel.Posts)),
 	}
 
 	for _, p := range channel.Posts {
@@ -22,8 +23,9 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 			continue
 		}
 
-		feed.Items = append(feed.Items, &feeds.Item{
+		feed.Add(&feeds.Item{
 			Id:      p.ID,
+			Title:   p.Title,
 			Content: p.ContentHTML,
 			Link:    &feeds.Link{Href: p.URL},
 			Created: p.Datetime,

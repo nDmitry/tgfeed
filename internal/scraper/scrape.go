@@ -55,7 +55,7 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 
 		post.ID = e.Attr("data-post")
 		post.URL = fmt.Sprintf("https://%s/%s", tgDomain, post.ID)
-
+		post.Title = ExtractTitle(e)
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
 		if err != nil {
