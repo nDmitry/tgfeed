@@ -1,9 +1,7 @@
 services:
   tgfeed:
     container_name: tgfeed
-    build:
-      context: .
-      target: final
+    image: ghcr.io/ndmitry/tgfeed:latest
     environment:
       - TZ=Europe/Moscow
       - HTTP_SERVER_PORT=8080
