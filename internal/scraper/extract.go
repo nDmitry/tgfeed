@@ -30,24 +30,24 @@ var (
 // 2. First line of text separated by multiple line breaks.
 // 3. First sentence or paragraph from the content.
 func ExtractTitle(element *colly.HTMLElement) string {
-	messageTextElement := element.DOM.Find(".tgme_widget_message_text")
+	msgContainer := findMessageContainer(element)
 
-	if messageTextElement.Length() == 0 {
+	if msgContainer == nil {
 		return ""
 	}
 
 	// Try to extract a bold line as the title first (if it's at the beginning)
-	if title := extractBoldTitle(messageTextElement); title != "" {
+	if title := extractBoldTitle(msgContainer); title != "" {
 		return formatTitle(title)
 	}
 
 	// Then try to find the first line separated by multiple breaks
-	if title := extractFirstLine(messageTextElement); title != "" {
+	if title := extractFirstLine(msgContainer); title != "" {
 		return formatTitle(title)
 	}
 
 	// Otherwise, use the first sentence or paragraph
-	text := messageTextElement.Text()
+	text := msgContainer.Text()
 	matches := sentenceEndRegex.FindStringIndex(text)
 
 	if matches != nil {
@@ -55,6 +55,34 @@ func ExtractTitle(element *colly.HTMLElement) string {
 	}
 
 	return formatTitle(text)
+}
+
+func findMessageContainer(element *colly.HTMLElement) *goquery.Selection {
+	msgContainer := element.DOM.Find(".tgme_widget_message_text")
+
+	if msgContainer.Length() == 0 {
+		return nil
+	}
+
+	// Sometimes there are two inner div.tgme_widget_message_text elements
+	// nested in eache other, in which case the most deep one is used.
+	if msgContainer.Length() > 1 {
+		deepest := msgContainer
+
+		for {
+			nestedElement := deepest.Find(".tgme_widget_message_text")
+
+			if nestedElement.Length() == 0 {
+				break
+			}
+
+			deepest = nestedElement
+		}
+
+		msgContainer = deepest
+	}
+
+	return msgContainer
 }
 
 // extractBoldTitle attempts to find a bold text at the beginning
@@ -75,7 +103,7 @@ func extractBoldTitle(selection *goquery.Selection) string {
 		// Check if this bold text is at the beginning
 		html, _ := selection.Html()
 
-		if strings.HasPrefix(html, "<b>"+text+"</b>") {
+		if strings.HasPrefix(html, "<b>"+text) {
 			boldText = text
 		}
 	})

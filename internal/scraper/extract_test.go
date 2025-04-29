@@ -62,6 +62,11 @@ func TestExtractTitle(t *testing.T) {
 			html:     `<div class="tgme_widget_message_bubble"></div>`,
 			expected: "",
 		},
+		{
+			name:     "Should extract the title out of the inner div",
+			html:     `<div class="tgme_widget_message_text js-message_text" dir="auto"><div class="tgme_widget_message_text js-message_text" dir="auto"><b>Стартовали общие OTC-торги заблокированными акциями<br></b><br>Доступны торги для 127 американских акций и ETF Finex на Мосбирже (список в комментариях).</div></div>`,
+			expected: "Стартовали общие OTC-торги заблокированными акциями",
+		},
 	}
 
 	for _, tt := range tests {
