@@ -11,8 +11,8 @@ type Channel struct {
 }
 
 type Post struct {
-	// Post ID, e.g. Channel/123.
-	ID          string
+	// Post ID, e.g. 123
+	ID          int
 	URL         string
 	Title       string
 	ContentHTML string

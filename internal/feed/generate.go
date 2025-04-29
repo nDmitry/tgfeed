@@ -24,7 +24,7 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 		}
 
 		item := &feeds.Item{
-			Id:      p.ID,
+			Id:      strconv.Itoa(p.ID),
 			Title:   p.Title,
 			Content: p.ContentHTML,
 			Link:    &feeds.Link{Href: p.URL},

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
@@ -45,8 +47,14 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 		var err error
 		var post = entity.Post{}
 
-		post.ID = e.Attr("data-post")
-		post.URL = fmt.Sprintf("https://%s/%s", tgDomain, post.ID)
+		if post.ID, err = extractPostIDFromPath(e.Attr("data-post")); err != nil {
+			logger.Error("Could not get post ID",
+				"path", e.Attr("data-post"),
+				"error", err)
+			return
+		}
+
+		post.URL = fmt.Sprintf("https://%s/%s/%d", tgDomain, username, post.ID)
 		post.Title = extractTitle(e)
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
@@ -84,12 +92,32 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 
 		post.Datetime = dt
 
+		// Display post deep link in case message content
+		// is unsupported by t.me or this scraper
 		if post.ContentHTML == "" {
-			// Default content in case Telegram does not show it in the web version.
-			post.ContentHTML = fmt.Sprintf(
-				`<a href="%s">[Open in Telegram]</a>`,
-				post.URL,
+			postDeepLink := fmt.Sprintf(
+				"tg://resolve?domain=%s&post=%d",
+				username, post.ID,
 			)
+
+			unsupportedMsgHTML := os.Getenv("UNSUPPORTED_MESSAGE_HTML")
+
+			if unsupportedMsgHTML == "" {
+				unsupportedMsgHTML = fmt.Sprintf(
+					`<p>Message content is unsupported, try opening it in Telegram mobile app or at t.me using the links below.</p><br><br><a href="%s">[Open in Telegram]</a>&bull;<a href="%s">[Open at t.me]</a>`,
+					postDeepLink, post.URL,
+				)
+			} else {
+				unsupportedMsgHTML = strings.ReplaceAll(
+					unsupportedMsgHTML, "{postDeepLink}", postDeepLink,
+				)
+
+				unsupportedMsgHTML = strings.ReplaceAll(
+					unsupportedMsgHTML, "{postURL}", post.URL,
+				)
+			}
+
+			post.ContentHTML = unsupportedMsgHTML
 		}
 
 		channel.Posts = append(channel.Posts, post)
@@ -107,4 +135,25 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 	}
 
 	return channel, nil
+}
+
+// extractIDFromPath extracts the numeric ID from a string in the format "prefix/id".
+func extractPostIDFromPath(path string) (int, error) {
+	parts := strings.Split(path, "/")
+
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid path format: expected 'prefix/id', got '%s'", path)
+	}
+
+	if parts[1] == "" {
+		return 0, fmt.Errorf("empty ID in path: '%s'", path)
+	}
+
+	id, err := strconv.Atoi(parts[1])
+
+	if err != nil {
+		return 0, fmt.Errorf("invalid numeric ID: %w", err)
+	}
+
+	return id, nil
 }
