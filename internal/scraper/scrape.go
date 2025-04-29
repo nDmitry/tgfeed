@@ -95,6 +95,8 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 		// Display post deep link in case message content
 		// is unsupported by t.me or this scraper
 		if post.ContentHTML == "" {
+			post.Title = "Message content is unsupported"
+
 			postDeepLink := fmt.Sprintf(
 				"tg://resolve?domain=%s&post=%d",
 				username, post.ID,
