@@ -104,7 +104,7 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 
 			if unsupportedMsgHTML == "" {
 				unsupportedMsgHTML = fmt.Sprintf(
-					`<p>Message content is unsupported, try opening it in Telegram mobile app or at t.me using the links below.</p><br><br><a href="%s">[Open in Telegram]</a>&bull;<a href="%s">[Open at t.me]</a>`,
+					`<p>Message content is unsupported, try opening it in Telegram mobile app or at t.me using the links below.</p><br><br><a href="%s">[Open in Telegram]</a>&nbsp;&bull;&nbsp;<a href="%s">[Open at t.me]</a>`,
 					postDeepLink, post.URL,
 				)
 			} else {
