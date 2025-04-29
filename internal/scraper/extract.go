@@ -1,6 +1,10 @@
 package scraper
 
 import (
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode"
@@ -8,6 +12,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
+	"github.com/nDmitry/tgfeed/internal/app"
+	"github.com/nDmitry/tgfeed/internal/entity"
 )
 
 const (
@@ -22,14 +28,15 @@ var (
 	// Match multiple spaces
 	multipleSpacesRegex = regexp.MustCompile(`\s+`)
 	sentenceEndRegex    = regexp.MustCompile(`[.!?…](?:\s|$)|\.{3}`)
+	imageExtRegex       = regexp.MustCompile(`\.(jpg|jpeg|png)$`)
 )
 
-// ExtractTitle extracts a meaningful title from HTML content following the specified rules.
+// extractTitle extracts a meaningful title from HTML content following the specified rules.
 // It prioritizes:
 // 1. First bold text if it appears at the beginning.
 // 2. First line of text separated by multiple line breaks.
 // 3. First sentence or paragraph from the content.
-func ExtractTitle(element *colly.HTMLElement) string {
+func extractTitle(element *colly.HTMLElement) string {
 	msgContainer := findMessageContainer(element)
 
 	if msgContainer == nil {
@@ -223,4 +230,125 @@ func truncateAtWordBoundary(text string, limit int) string {
 	}
 
 	return text
+}
+
+// extractImages gets all images from message grouped layer
+func extractImages(element *colly.HTMLElement) []entity.Image {
+	var images []entity.Image
+
+	element.ForEach(".tgme_widget_message_photo_wrap", func(_ int, el *colly.HTMLElement) {
+		imageURL := extractImageURLFromStyle(el.Attr("style"))
+
+		if imageURL == "" {
+			return
+		}
+
+		imageType := extractImageTypeFromURL(imageURL)
+		imageSize := getImageSize(imageURL)
+
+		images = append(images, entity.Image{
+			URL:  imageURL,
+			Type: imageType,
+			Size: imageSize,
+		})
+	})
+
+	return images
+}
+
+// extractPreview finds an image link preview and extracts it
+func extractPreview(element *colly.HTMLElement) *entity.Image {
+	previewURL, exists := element.DOM.Find(".tgme_widget_message_link_preview").Attr("href")
+
+	if exists && imageExtRegex.MatchString(previewURL) {
+		preview := &entity.Image{
+			URL: extractImageURLFromStyle(previewURL),
+		}
+
+		preview.Type = extractImageTypeFromURL(preview.URL)
+		preview.Size = getImageSize(preview.URL)
+
+		return preview
+	}
+
+	return nil
+}
+
+func extractImageURLFromStyle(style string) string {
+	if style == "" {
+		return ""
+	}
+
+	urlStart := strings.Index(style, "url(")
+
+	if urlStart == -1 {
+		return ""
+	}
+
+	urlStart += 4 // Skip "url("
+	urlEnd := strings.Index(style[urlStart:], ")") + urlStart
+
+	if urlEnd <= urlStart {
+		return ""
+	}
+
+	url := style[urlStart:urlEnd]
+	url = strings.Trim(url, "'\"")
+
+	return url
+}
+
+func extractImageTypeFromURL(url string) string {
+	switch filepath.Ext(url) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	default:
+		return "" // Skip unsupported image types
+	}
+}
+
+func getImageSize(imageURL string) int64 {
+	logger := app.Logger()
+	// nolint: gosec
+	res, err := http.Get(imageURL)
+
+	if err != nil {
+		logger.Error("Could not download an image",
+			"imageUrl", imageURL,
+			"error", err)
+
+		return 0
+	}
+
+	defer res.Body.Close()
+
+	tmpFile, err := os.CreateTemp(tmpPath, "enclosure_*")
+
+	if err != nil {
+		logger.Error("Could not create a temp file",
+			"imageUrl", imageURL,
+			"error", err)
+
+		return 0
+	}
+
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
+	n, err := io.Copy(tmpFile, res.Body)
+
+	if err != nil {
+		logger.Error("Could not save an image into tmp file",
+			"tmpFilename", tmpFile.Name(),
+			"imageUrl", imageURL,
+			"error", err)
+
+		return 0
+	}
+
+	return n
 }

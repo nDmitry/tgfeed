@@ -23,18 +23,25 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 			continue
 		}
 
-		feed.Add(&feeds.Item{
+		item := &feeds.Item{
 			Id:      p.ID,
 			Title:   p.Title,
 			Content: p.ContentHTML,
 			Link:    &feeds.Link{Href: p.URL},
 			Created: p.Datetime,
-			Enclosure: &feeds.Enclosure{
-				Url:    p.ImageURL,
-				Type:   p.ImageType,
-				Length: strconv.Itoa(int(p.ImageSize)),
-			},
-		})
+		}
+
+		if p.Preview != nil {
+			item.Enclosure = &feeds.Enclosure{
+				Url:    p.Preview.URL,
+				Type:   p.Preview.Type,
+				Length: strconv.Itoa(int(p.Preview.Size)),
+			}
+		}
+
+		item.Content = appendGallery(item.Content, p.Images)
+
+		feed.Add(item)
 
 		if feed.Created.IsZero() || p.Datetime.After(feed.Created) {
 			feed.Created = p.Datetime
@@ -58,6 +65,26 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 	}
 
 	return []byte(content), nil
+}
+
+func appendGallery(content string, images []entity.Image) string {
+	if len(images) == 0 {
+		return content
+	}
+
+	if content != "" {
+		content += "<br><br>"
+	}
+
+	content += `<div class="image-gallery">`
+
+	for _, img := range images {
+		content += fmt.Sprintf(`<p><img src="%s" alt="Image" /></p>`, img.URL)
+	}
+
+	content += "</div>"
+
+	return content
 }
 
 // shouldExcludePost checks if a post should be excluded based on exclude words

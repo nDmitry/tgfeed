@@ -16,10 +16,18 @@ type Post struct {
 	URL         string
 	Title       string
 	ContentHTML string
-	ImageURL    string
-	ImageType   string
-	// In bytes.
-	ImageSize int64
+	// A preview image that goes to enclosure
+	Preview *Image
+	// Collection of all images in the post
+	Images []Image
 	// Date and time of the post in RFC3339 format.
 	Datetime time.Time
+}
+
+// Image represents an image attachment with its metadata
+type Image struct {
+	URL  string
+	Type string
+	// In bytes
+	Size int64
 }

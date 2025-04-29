@@ -1,4 +1,4 @@
-package scraper_test
+package scraper
 
 import (
 	"strings"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
-	"github.com/nDmitry/tgfeed/internal/scraper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -83,7 +82,7 @@ func TestExtractTitle(t *testing.T) {
 			}
 
 			// Call the function under test
-			title := scraper.ExtractTitle(element)
+			title := extractTitle(element)
 
 			// Assert the result
 			assert.Equal(t, tt.expected, title)

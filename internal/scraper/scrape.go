@@ -3,12 +3,7 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
@@ -20,10 +15,7 @@ const tmpPath = "/tmp"
 const tgDomain = "t.me"
 const userAgentDefault = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
-var imageExtRe = regexp.MustCompile(`\.(jpg|jpeg|png)$`)
-
 // Scrape fetches channel data from Telegram
-// nolint: cyclop
 func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 	logger := app.Logger()
 
@@ -55,7 +47,7 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 
 		post.ID = e.Attr("data-post")
 		post.URL = fmt.Sprintf("https://%s/%s", tgDomain, post.ID)
-		post.Title = ExtractTitle(e)
+		post.Title = extractTitle(e)
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
 		if err != nil {
@@ -65,36 +57,12 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 			return
 		}
 
-		style, exists := e.DOM.Find(".tgme_widget_message_photo_wrap").Attr("style")
+		post.Images = extractImages(e)
 
-		if exists {
-			post.ImageURL = style[strings.Index(style, "url(")+4 : strings.Index(style, ")")-1]
-			post.ImageURL = strings.Trim(post.ImageURL, "'")
-		}
-
-		if post.ImageURL == "" {
-			preview, _ := e.DOM.Find(".tgme_widget_message_link_preview").Attr("href")
-
-			if imageExtRe.MatchString(preview) {
-				post.ImageURL = preview
-			}
-		}
-
-		switch filepath.Ext(post.ImageURL) {
-		case ".jpg", ".jpeg":
-			post.ImageType = "image/jpeg"
-		case ".png":
-			post.ImageType = "image/png"
-		}
-
-		if post.ImageURL != "" {
-			if post.ImageSize, err = getImageSize(post.ImageURL); err != nil {
-				logger.Error("Could not get image size",
-					"url", post.URL,
-					"imageUrl", post.ImageURL,
-					"error", err)
-				// Continue anyway, image size is not critical
-			}
+		if len(post.Images) > 0 {
+			post.Preview = &post.Images[0]
+		} else {
+			post.Preview = extractPreview(e)
 		}
 
 		dtText, exists := e.DOM.Find(".tgme_widget_message_date").Find("time").Attr("datetime")
@@ -139,34 +107,4 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 	}
 
 	return channel, nil
-}
-
-func getImageSize(imageURL string) (int64, error) {
-	// nolint: gosec
-	res, err := http.Get(imageURL)
-
-	if err != nil {
-		return 0, fmt.Errorf("could not download an image: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	tmpFile, err := os.CreateTemp(tmpPath, "enclosure_*")
-
-	if err != nil {
-		return 0, fmt.Errorf("could not create a temp file: %w", err)
-	}
-
-	defer func() {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-	}()
-
-	n, err := io.Copy(tmpFile, res.Body)
-
-	if err != nil {
-		return 0, fmt.Errorf("could not save an image into %s: %w", tmpFile.Name(), err)
-	}
-
-	return n, nil
 }
