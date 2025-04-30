@@ -19,13 +19,12 @@ const tgDomainDefault = "t.me"
 const userAgentDefault = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
 type Scraper struct {
-	// Can be set to mock a web server for testing
-	Protocol string
-	Host     string
+	protocol string
+	host     string
 }
 
 func NewDefaultScraper() *Scraper {
-	return &Scraper{Protocol: tgProtocolDefault, Host: tgDomainDefault}
+	return &Scraper{protocol: tgProtocolDefault, host: tgDomainDefault}
 }
 
 // Scrape fetches channel data from Telegram
@@ -34,7 +33,7 @@ func (s *Scraper) Scrape(ctx context.Context, username string) (*entity.Channel,
 
 	channel := &entity.Channel{
 		Username: username,
-		URL:      fmt.Sprintf("%s://%s/s/%s", s.Protocol, s.Host, username),
+		URL:      fmt.Sprintf("%s://%s/s/%s", s.protocol, s.host, username),
 	}
 
 	ua := os.Getenv("USER_AGENT")
@@ -44,7 +43,7 @@ func (s *Scraper) Scrape(ctx context.Context, username string) (*entity.Channel,
 	}
 
 	c := colly.NewCollector(
-		colly.AllowedDomains(s.Host),
+		colly.AllowedDomains(s.host),
 		colly.UserAgent(ua),
 		colly.StdlibContext(ctx),
 	)
@@ -65,7 +64,7 @@ func (s *Scraper) Scrape(ctx context.Context, username string) (*entity.Channel,
 			return
 		}
 
-		post.URL = fmt.Sprintf("%s://%s/%s/%d", s.Protocol, s.Host, username, post.ID)
+		post.URL = fmt.Sprintf("%s://%s/%s/%d", s.protocol, s.host, username, post.ID)
 		post.Title = extractTitle(e)
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
