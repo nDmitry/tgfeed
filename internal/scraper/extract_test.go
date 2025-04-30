@@ -66,6 +66,11 @@ func TestExtractTitle(t *testing.T) {
 			html:     `<div class="tgme_widget_message_text js-message_text" dir="auto"><div class="tgme_widget_message_text js-message_text" dir="auto"><b>Стартовали общие OTC-торги заблокированными акциями<br></b><br>Доступны торги для 127 американских акций и ETF Finex на Мосбирже (список в комментариях).</div></div>`,
 			expected: "Стартовали общие OTC-торги заблокированными акциями",
 		},
+		{
+			name:     "First lnie title with bold parts is extracted fully",
+			html:     `<div class="tgme_widget_message_text js-message_text" dir="auto"><b>$10 000</b>, вложенных ~20 лет назад в:<br><br>1. Золото (берём самый известный золотой ETF/ЗПИФ -&gt; GLD - SPDR Gold Shares) с 2004 по 2025 превратились в ~ <b>$69 000. <br></b>2. Американские государственные облигации (берём самый известный фонд облигаций -&gt; iShares 20+ Year Treasury Bond ETF) с 2004 по 2025 превратились в <b>~$18 700</b>, и это если реинвестировались все купоны, полученные от облигаций.</div>`,
+			expected: "$10 000, вложенных ~20 лет назад в…",
+		},
 	}
 
 	for _, tt := range tests {

@@ -20,12 +20,11 @@ const (
 	maxTitleLength  = 80
 	ellipsis        = "…"
 	openParenthesis = '('
+	punctuation     = ",.;:!? "
 )
 
 var (
-	// Match multiple line breaks (2 or more)
-	multipleBreaksRegex = regexp.MustCompile(`(?:<br\s*/?>\s*){2,}|<p>|</p>`)
-	// Match multiple spaces
+	breaksRegex         = regexp.MustCompile(`(?:<br\s*/?>\s*){1,}|<p>|</p>`)
 	multipleSpacesRegex = regexp.MustCompile(`\s+`)
 	sentenceEndRegex    = regexp.MustCompile(`[.!?…](?:\s|$)|\.{3}`)
 	imageExtRegex       = regexp.MustCompile(`\.(jpg|jpeg|png)$`)
@@ -33,9 +32,8 @@ var (
 
 // extractTitle extracts a meaningful title from HTML content following the specified rules.
 // It prioritizes:
-// 1. First bold text if it appears at the beginning.
-// 2. First line of text separated by multiple line breaks.
-// 3. First sentence or paragraph from the content.
+// 1. First line of text separated by multiple line breaks.
+// 2. First sentence or paragraph from the content.
 func extractTitle(element *colly.HTMLElement) string {
 	msgContainer := findMessageContainer(element)
 
@@ -43,17 +41,10 @@ func extractTitle(element *colly.HTMLElement) string {
 		return ""
 	}
 
-	// Try to extract a bold line as the title first (if it's at the beginning)
-	if title := extractBoldTitle(msgContainer); title != "" {
-		return formatTitle(title)
-	}
-
-	// Then try to find the first line separated by multiple breaks
 	if title := extractFirstLine(msgContainer); title != "" {
 		return formatTitle(title)
 	}
 
-	// Otherwise, use the first sentence or paragraph
 	text := msgContainer.Text()
 	matches := sentenceEndRegex.FindStringIndex(text)
 
@@ -92,32 +83,6 @@ func findMessageContainer(element *colly.HTMLElement) *goquery.Selection {
 	return msgContainer
 }
 
-// extractBoldTitle attempts to find a bold text at the beginning
-func extractBoldTitle(selection *goquery.Selection) string {
-	var boldText string
-
-	selection.Find("b").Each(func(_ int, s *goquery.Selection) {
-		if boldText != "" {
-			return // Already found bold text
-		}
-
-		text := s.Text()
-
-		if text == "" {
-			return
-		}
-
-		// Check if this bold text is at the beginning
-		html, _ := selection.Html()
-
-		if strings.HasPrefix(html, "<b>"+text) {
-			boldText = text
-		}
-	})
-
-	return boldText
-}
-
 // extractFirstLine finds the first line of text before multiple line breaks
 func extractFirstLine(selection *goquery.Selection) string {
 	html, err := selection.Html()
@@ -127,7 +92,7 @@ func extractFirstLine(selection *goquery.Selection) string {
 	}
 
 	// Split content at multiple line breaks
-	parts := multipleBreaksRegex.Split(html, 2)
+	parts := breaksRegex.Split(html, 2)
 
 	if len(parts) > 1 {
 		// Create a new document from the first part to extract text
@@ -182,7 +147,7 @@ func removeIncompleteParens(text string, limit int) string {
 		if runeCount > limit && inParens {
 			// If we cross the limit while inside parentheses,
 			// remove everything from the opening paren
-			return strings.TrimRight(text[:parenStart], ",.;:!? ") + ellipsis
+			return strings.TrimRight(text[:parenStart], punctuation) + ellipsis
 		}
 
 		if !inParens {
@@ -195,8 +160,21 @@ func removeIncompleteParens(text string, limit int) string {
 
 // truncateAtWordBoundary truncates text at a word boundary
 func truncateAtWordBoundary(text string, limit int) string {
+	// Remove trailing colon if present
+	hasColon := strings.HasSuffix(text, ":")
+
+	if hasColon {
+		text = strings.TrimSuffix(text, ":")
+	}
+
 	runeCount := utf8.RuneCountInString(text)
 
+	// If text is under the limit and had a colon, add ellipsis
+	if runeCount <= limit && hasColon {
+		return text + ellipsis
+	}
+
+	// Otherwise just return the text
 	if runeCount <= limit {
 		return text
 	}
@@ -223,7 +201,7 @@ func truncateAtWordBoundary(text string, limit int) string {
 			}
 
 			// Remove trailing punctuation before adding ellipsis
-			truncated = strings.TrimRight(truncated, ",.;:!? ")
+			truncated = strings.TrimRight(truncated, punctuation)
 
 			return truncated + ellipsis
 		}
