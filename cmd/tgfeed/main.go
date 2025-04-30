@@ -11,6 +11,7 @@ import (
 	"github.com/nDmitry/tgfeed/internal/api/rest"
 	"github.com/nDmitry/tgfeed/internal/app"
 	"github.com/nDmitry/tgfeed/internal/cache"
+	"github.com/nDmitry/tgfeed/internal/feed"
 )
 
 func main() {
@@ -57,8 +58,11 @@ func main() {
 
 	defer redisClient.Close()
 
+	scraper := feed.NewDefaultScraper()
+	generator := &feed.Generator{}
+
 	// Initialize and run the HTTP server
-	server := rest.NewServer(redisClient, port)
+	server := rest.NewServer(redisClient, scraper, generator, port)
 
 	if err := server.Run(ctx); err != nil {
 		logger.Error("Server error", "error", err)

@@ -9,8 +9,10 @@ import (
 	"github.com/nDmitry/tgfeed/internal/entity"
 )
 
+type Generator struct{}
+
 // Generate creates a feed from a channel and returns it as a byte array
-func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error) {
+func (g *Generator) Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error) {
 	feed := &feeds.Feed{
 		Title: channel.Title,
 		Link:  &feeds.Link{Href: channel.URL},
@@ -19,7 +21,7 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 	}
 
 	for _, p := range channel.Posts {
-		if shouldExcludePost(p.ContentHTML, params.ExcludeWords, params.ExcludeCaseSensitive) {
+		if g.shouldExcludePost(p.ContentHTML, params.ExcludeWords, params.ExcludeCaseSensitive) {
 			continue
 		}
 
@@ -39,7 +41,7 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 			}
 		}
 
-		item.Content = appendGallery(item.Content, p.Images)
+		item.Content = g.appendGallery(item.Content, p.Images)
 
 		feed.Add(item)
 
@@ -67,7 +69,7 @@ func Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error
 	return []byte(content), nil
 }
 
-func appendGallery(content string, images []entity.Image) string {
+func (g *Generator) appendGallery(content string, images []entity.Image) string {
 	if len(images) == 0 {
 		return content
 	}
@@ -88,7 +90,7 @@ func appendGallery(content string, images []entity.Image) string {
 }
 
 // shouldExcludePost checks if a post should be excluded based on exclude words
-func shouldExcludePost(content string, excludeWords []string, caseSensitive bool) bool {
+func (g *Generator) shouldExcludePost(content string, excludeWords []string, caseSensitive bool) bool {
 	if len(excludeWords) == 0 {
 		return false
 	}

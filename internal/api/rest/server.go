@@ -14,23 +14,27 @@ import (
 
 // Server represents the REST API server
 type Server struct {
-	mux    *http.ServeMux
-	server *http.Server
-	logger *slog.Logger
-	cache  cache.Cache
-	port   string
+	mux       *http.ServeMux
+	server    *http.Server
+	logger    *slog.Logger
+	cache     cache.Cache
+	scraper   Scraper
+	generator Generator
+	port      string
 }
 
 // NewServer creates a new REST API server
-func NewServer(cache cache.Cache, port string) *Server {
+func NewServer(c cache.Cache, s Scraper, g Generator, port string) *Server {
 	mux := http.NewServeMux()
 	logger := app.Logger()
 
 	server := &Server{
-		mux:    mux,
-		logger: logger,
-		cache:  cache,
-		port:   port,
+		mux:       mux,
+		logger:    logger,
+		cache:     c,
+		scraper:   s,
+		generator: g,
+		port:      port,
 		server: &http.Server{
 			Addr:              ":" + port,
 			Handler:           nil,               // Will be set in Run
@@ -48,7 +52,7 @@ func NewServer(cache cache.Cache, port string) *Server {
 
 // registerHandlers sets up all API routes
 func (s *Server) registerHandlers() {
-	NewTelegramHandler(s.mux, s.cache)
+	NewTelegramHandler(s.mux, s.cache, s.scraper, s.generator)
 	// more handlers can be here
 }
 

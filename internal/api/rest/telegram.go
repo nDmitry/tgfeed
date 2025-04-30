@@ -12,21 +12,34 @@ import (
 	"github.com/nDmitry/tgfeed/internal/app"
 	"github.com/nDmitry/tgfeed/internal/cache"
 	"github.com/nDmitry/tgfeed/internal/entity"
-	"github.com/nDmitry/tgfeed/internal/feed"
-	"github.com/nDmitry/tgfeed/internal/scraper"
 )
+
+type Scraper interface {
+	Scrape(ctx context.Context, username string) (*entity.Channel, error)
+}
+
+type Generator interface {
+	Generate(channel *entity.Channel, params *entity.FeedParams) ([]byte, error)
+}
 
 // telegramHandler handles routes for Telegram feeds
 type telegramHandler struct {
-	cache  cache.Cache
-	logger *slog.Logger
+	cache     cache.Cache
+	scraper   Scraper
+	generator Generator
+	logger    *slog.Logger
 }
 
 // NewTelegramHandler registers all Telegram-related handlers
-func NewTelegramHandler(mux *http.ServeMux, cache cache.Cache) {
+func NewTelegramHandler(
+	mux *http.ServeMux,
+	c cache.Cache, s Scraper, g Generator,
+) {
 	handler := &telegramHandler{
-		cache:  cache,
-		logger: app.Logger(),
+		cache:     c,
+		scraper:   s,
+		generator: g,
+		logger:    app.Logger(),
 	}
 
 	mux.HandleFunc("GET /telegram/channel/{username}", handler.getChannelFeed)
@@ -58,7 +71,7 @@ func (h *telegramHandler) getChannelFeed(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Cache miss or caching disabled - scrape the channel
-	channel, err := scraper.Scrape(r.Context(), params.Username)
+	channel, err := h.scraper.Scrape(r.Context(), params.Username)
 
 	if err != nil {
 		h.handleError(w, err, http.StatusInternalServerError)
@@ -66,7 +79,7 @@ func (h *telegramHandler) getChannelFeed(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Generate feed
-	content, err := feed.Generate(channel, params)
+	content, err := h.generator.Generate(channel, params)
 
 	if err != nil {
 		h.handleError(w, err, http.StatusInternalServerError)

@@ -1,4 +1,4 @@
-package scraper
+package feed
 
 import (
 	"context"
@@ -14,16 +14,27 @@ import (
 )
 
 const tmpPath = "/tmp"
-const tgDomain = "t.me"
+const tgProtocolDefault = "https"
+const tgDomainDefault = "t.me"
 const userAgentDefault = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
+type Scraper struct {
+	// Can be set to mock a web server for testing
+	Protocol string
+	Host     string
+}
+
+func NewDefaultScraper() *Scraper {
+	return &Scraper{Protocol: tgProtocolDefault, Host: tgDomainDefault}
+}
+
 // Scrape fetches channel data from Telegram
-func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
+func (s *Scraper) Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 	logger := app.Logger()
 
 	channel := &entity.Channel{
 		Username: username,
-		URL:      fmt.Sprintf("https://%s/s/%s", tgDomain, username),
+		URL:      fmt.Sprintf("%s://%s/s/%s", s.Protocol, s.Host, username),
 	}
 
 	ua := os.Getenv("USER_AGENT")
@@ -33,7 +44,7 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 	}
 
 	c := colly.NewCollector(
-		colly.AllowedDomains(tgDomain),
+		colly.AllowedDomains(s.Host),
 		colly.UserAgent(ua),
 		colly.StdlibContext(ctx),
 	)
@@ -47,14 +58,14 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 		var err error
 		var post = entity.Post{}
 
-		if post.ID, err = extractPostIDFromPath(e.Attr("data-post")); err != nil {
+		if post.ID, err = s.extractPostIDFromPath(e.Attr("data-post")); err != nil {
 			logger.Error("Could not get post ID",
 				"path", e.Attr("data-post"),
 				"error", err)
 			return
 		}
 
-		post.URL = fmt.Sprintf("https://%s/%s/%d", tgDomain, username, post.ID)
+		post.URL = fmt.Sprintf("%s://%s/%s/%d", s.Protocol, s.Host, username, post.ID)
 		post.Title = extractTitle(e)
 		post.ContentHTML, err = e.DOM.Find(".tgme_widget_message_text").Html()
 
@@ -140,7 +151,7 @@ func Scrape(ctx context.Context, username string) (*entity.Channel, error) {
 }
 
 // extractIDFromPath extracts the numeric ID from a string in the format "prefix/id".
-func extractPostIDFromPath(path string) (int, error) {
+func (s *Scraper) extractPostIDFromPath(path string) (int, error) {
 	parts := strings.Split(path, "/")
 
 	if len(parts) != 2 {

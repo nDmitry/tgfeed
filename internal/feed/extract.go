@@ -1,4 +1,4 @@
-package scraper
+package feed
 
 import (
 	"io"
