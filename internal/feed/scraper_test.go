@@ -139,12 +139,12 @@ func TestScraper_Scrape(t *testing.T) {
 		require.NotNil(t, post.Preview, "Post 4 should have a preview image")
 		assert.Contains(t, post.Preview.URL, "cdn-telegram.org/file")
 		assert.Equal(t, "image/jpeg", post.Preview.Type)
-		assert.Greater(t, post.Preview.Size, int64(0))
+		assert.Positive(t, post.Preview.Size)
 
 		// Check images collection
 		require.GreaterOrEqual(t, len(post.Images), 1, "Post 4 should have at least one image in the collection")
 		assert.Contains(t, post.Images[0].URL, "cdn-telegram.org/file")
 		assert.Equal(t, "image/jpeg", post.Images[0].Type)
-		assert.Greater(t, post.Images[0].Size, int64(0))
+		assert.Positive(t, post.Images[0].Size)
 	})
 }
