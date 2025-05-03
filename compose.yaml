@@ -9,9 +9,11 @@ services:
       # You can specify a custom HTML message for cases when the scraper
       # could not obtain the post content from t.me.
       # Use {postDeepLink} and {postURL} as placeholders for post links.
-      # - UNSUPPORTED_MESSAGE_HTML
-      # If you expirience problems with t.me access, try to change the UA
+      # - UNSUPPORTED_MESSAGE_HTML=
+      # If you expirience problems with t.me access,
+      # try to change the UA and/or use an HTTP proxy
       # - USER_AGENT=
+      # - HTTPS_PROXY=
     ports:
       - 8080:8080
     depends_on:

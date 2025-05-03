@@ -48,6 +48,8 @@ func (s *Scraper) Scrape(ctx context.Context, username string) (*entity.Channel,
 		colly.StdlibContext(ctx),
 	)
 
+	c.WithTransport(httpTransport)
+
 	c.OnHTML(".tgme_channel_info_header", func(e *colly.HTMLElement) {
 		channel.Title = e.ChildText(".tgme_channel_info_header_title")
 		channel.ImageURL = e.ChildAttr("img", "src")

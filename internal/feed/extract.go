@@ -2,7 +2,6 @@ package feed
 
 import (
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -292,7 +291,7 @@ func extractImageTypeFromURL(url string) string {
 func getImageSize(imageURL string) int64 {
 	logger := app.Logger()
 	// nolint: gosec
-	res, err := http.Get(imageURL)
+	res, err := httpClient.Get(imageURL)
 
 	if err != nil {
 		logger.Error("Could not download an image",
