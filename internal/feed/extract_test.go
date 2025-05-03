@@ -94,3 +94,54 @@ func TestExtractTitle(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractImageURLFromStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		style    string
+		expected string
+	}{
+		{
+			name:     "Simple URL",
+			style:    "background-image:url(https://example.com/image.jpg)",
+			expected: "https://example.com/image.jpg",
+		},
+		{
+			name:     "URL with single quotes",
+			style:    "width:415px;background-image:url('https://example.com/image.jpg')",
+			expected: "https://example.com/image.jpg",
+		},
+		{
+			name:     "URL with double quotes",
+			style:    "width:415px;background-image:url(\"https://example.com/image.jpg\")",
+			expected: "https://example.com/image.jpg",
+		},
+		{
+			name:     "Empty style",
+			style:    "",
+			expected: "",
+		},
+		{
+			name:     "No URL",
+			style:    "width:415px;color:red;",
+			expected: "",
+		},
+		{
+			name:     "Malformed URL (no closing parenthesis)",
+			style:    "background-image:url(https://example.com/image.jpg",
+			expected: "",
+		},
+		{
+			name:     "URL with query parameters",
+			style:    "background-image:url(https://example.com/image.jpg?size=large&format=webp)",
+			expected: "https://example.com/image.jpg?size=large&format=webp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractImageURLFromStyle(tt.style)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

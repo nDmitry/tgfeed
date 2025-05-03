@@ -282,6 +282,8 @@ func extractImageTypeFromURL(url string) string {
 		return "image/jpeg"
 	case ".png":
 		return "image/png"
+	case ".gif":
+		return "image/gif"
 	default:
 		return "" // Skip unsupported image types
 	}
