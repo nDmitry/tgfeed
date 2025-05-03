@@ -26,7 +26,7 @@ var (
 	breaksRegex         = regexp.MustCompile(`(?:<br\s*/?>\s*){1,}|<p>|</p>`)
 	multipleSpacesRegex = regexp.MustCompile(`\s+`)
 	sentenceEndRegex    = regexp.MustCompile(`[.!?…](?:\s|$)|\.{3}`)
-	imageExtRegex       = regexp.MustCompile(`\.(jpg|jpeg|png)$`)
+	imageExtRegex       = regexp.MustCompile(`\.(jpg|jpeg|png|gif)$`)
 )
 
 // extractTitle extracts a meaningful title from HTML content following the specified rules.
@@ -239,7 +239,7 @@ func extractPreview(element *colly.HTMLElement) *entity.Image {
 
 	if exists && imageExtRegex.MatchString(previewURL) {
 		preview := &entity.Image{
-			URL: extractImageURLFromStyle(previewURL),
+			URL: previewURL,
 		}
 
 		preview.Type = extractImageTypeFromURL(preview.URL)
