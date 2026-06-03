@@ -123,6 +123,7 @@ func (s *Scraper) createCollector(ctx context.Context) *colly.Collector {
 	)
 
 	c.WithTransport(httpTransport)
+	c.SetClient(httpClient)
 
 	return c
 }
