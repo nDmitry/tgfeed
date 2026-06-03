@@ -9,13 +9,13 @@ import (
 var httpTransport = &http.Transport{
 	Proxy: http.ProxyFromEnvironment,
 	DialContext: (&net.Dialer{
-		Timeout:   10 * time.Second,
+		Timeout:   60 * time.Second,
 		KeepAlive: 60 * time.Second,
 	}).DialContext,
 	MaxIdleConns:        100,
 	MaxIdleConnsPerHost: 10,
 	IdleConnTimeout:     90 * time.Second,
-	TLSHandshakeTimeout: 10 * time.Second,
+	TLSHandshakeTimeout: 60 * time.Second,
 	DisableCompression:  false,
 }
 
